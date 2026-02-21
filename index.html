@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>lm ban tot ma^^</title>
+    <meta name="description" content="Đếm những ngày chấp niệm." />
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+    <!-- Rain effect -->
+    <canvas id="rain-canvas" aria-hidden="true"></canvas>
+
+    <!-- Ambient fog layer -->
+    <div class="fog" aria-hidden="true"></div>
+
+    <!-- Main content -->
+    <main class="container">
+        <h1 class="title">người này đã chấp niệm được</h1>
+
+        <div class="counter-wrapper">
+            <div class="counter-digits" id="counter" aria-live="polite">
+                <span class="digit-box">—</span>
+            </div>
+            <p class="day-label">ngày</p>
+            <p class="quote">"rõ ràng là có thể làm bạn cả đời, </br>vậy mà nhất quyết biến thành người yêu trong vài
+                tháng"
+            </p>
+        </div>
+    </main>
+
+    <!-- The anchor date whisper at the bottom -->
+    <div class="whisper" id="whisper" aria-label="Ngày bắt đầu"></div>
+
+    <script>
+        // ─── Rain Effect ───
+        (function initRain() {
+            const canvas = document.getElementById('rain-canvas');
+            const ctx = canvas.getContext('2d');
+            let drops = [];
+            const DROP_COUNT = 80;
+
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+
+            function createDrop() {
+                return {
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height * -1,
+                    length: Math.random() * 18 + 8,
+                    speed: Math.random() * 1.5 + 0.5,
+                    opacity: Math.random() * 0.15 + 0.03,
+                    drift: (Math.random() - 0.5) * 0.3
+                };
+            }
+
+            function init() {
+                resize();
+                drops = Array.from({ length: DROP_COUNT }, createDrop);
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drops.forEach(d => {
+                    ctx.beginPath();
+                    ctx.moveTo(d.x, d.y);
+                    ctx.lineTo(d.x + d.drift * d.length, d.y + d.length);
+                    ctx.strokeStyle = `rgba(180, 180, 210, ${d.opacity})`;
+                    ctx.lineWidth = 0.8;
+                    ctx.stroke();
+
+                    d.y += d.speed;
+                    d.x += d.drift * 0.3;
+
+                    if (d.y > canvas.height) {
+                        Object.assign(d, createDrop());
+                        d.y = -d.length;
+                    }
+                });
+                requestAnimationFrame(draw);
+            }
+
+            // Respect reduced-motion
+            const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+            if (!prefersReduced.matches) {
+                init();
+                draw();
+                window.addEventListener('resize', resize);
+            }
+        })();
+
+        // ─── Day Counter ───
+        (async function initCounter() {
+            try {
+                const res = await fetch('data.json');
+                const data = await res.json();
+
+                const startDate = new Date(data.startDate.iso8601);
+                const counterEl = document.getElementById('counter');
+                const whisperEl = document.getElementById('whisper');
+
+                function update() {
+                    const now = new Date();
+                    const diffMs = now - startDate;
+                    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                    const digits = String(diffDays).split('');
+                    counterEl.innerHTML = digits
+                        .map(d => `<span class="digit-box">${d}</span>`)
+                        .join('');
+                }
+
+                update();
+                // Update every minute (the day count won't change often)
+                setInterval(update, 60000);
+
+                // Show the anchor date at the bottom
+                whisperEl.textContent = `kể từ ${data.startDate.display}`;
+            } catch (err) {
+                console.error('Could not load data.json:', err);
+                document.getElementById('counter').textContent = '∞';
+            }
+        })();
+    </script>
+
+</body>
+
+</html>
